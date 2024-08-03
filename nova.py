@@ -1,4 +1,4 @@
-# pylint: disable=locally-disabled, multiple-statements, fixme, line-too-long, missing-module-docstring, missing-function-docstring, used-before-assignment
+# pylint: disable=locally-disabled, multiple-statements, fixme, line-too-long, missing-module-docstring, missing-function-docstring, used-before-assignment, no-value-for-parameter
 
 import glob
 import os
@@ -10,17 +10,25 @@ import subprocess
 
 PATH = os.getcwd()
 
+
 def read_config():
     # Create a ConfigParser object
     config = configparser.ConfigParser()
 
+    # get path to current script
+    script_directory = os.path.dirname(os.path.abspath(__file__))
+
+    config_file_path = os.path.join(script_directory, "config.ini")
+
     # Read the configuration file
-    config.read("/Users/kglackin/w/bin/config.ini")
+    config.read(config_file_path)
 
     # Access values from the configuration file
     root_path = config.get("General", "root_path")
     proj_url = config.get("General", "proj_url")
     admin_email = config.get("General", "admin_email")
+    default_plugins = config.get("General", "default_plugins").split(", ")
+
     db_host = config.get("Database", "db_host")
 
     # Return a dictionary with the retrieved values
@@ -28,6 +36,7 @@ def read_config():
         "root_path": root_path,
         "proj_url": proj_url,
         "admin_email": admin_email,
+        "default_plugins": default_plugins,
         "db_host": db_host,
     }
 
@@ -76,9 +85,20 @@ def initial():
     print(
         "--------------------------------------------------------------------------------"
     )
-    print("Cleaning up plugins...")
+    print("Removing default plugins...")
     os.system("wp plugin delete akismet")
     os.system("wp plugin delete hello")
+
+    print(
+        "--------------------------------------------------------------------------------"
+    )
+    if "none" in config_data["default_plugins"]:
+        print('No default plugins specified, skipping to next step...')
+    else:
+        print("Adding plugins specified in config.ini...")
+
+        for i in config_data["default_plugins"]:
+            os.system(f"wp plugin install {i}")
 
     print(
         "--------------------------------------------------------------------------------"
@@ -89,7 +109,9 @@ def initial():
         "--------------------------------------------------------------------------------"
     )
     print("Adding gitignore...")
-    os.system(f'cp {os.path.dirname(__file__)}/files/.gitignore {config_data["root_path"]}/{slug}')
+    os.system(
+        f'cp {os.path.dirname(__file__)}/files/.gitignore {config_data["root_path"]}/{slug}'
+    )
 
     print(
         "--------------------------------------------------------------------------------"
@@ -130,7 +152,7 @@ def backup():
         os.system(f"wp db export {dt_string}.sql")
 
     except subprocess.CalledProcessError as error:
-        print('It looks like you aren\'t in a project folder')
+        print("It looks like you aren't in a project folder")
 
         print(error)
         sys.exit(0)
@@ -160,34 +182,51 @@ def importdb(db_name):
                     else:
                         print(f"{db_name} file not found, import failed")
                 else:
-                    print("Finding the latest backup since a specific one was not provided...")
+                    print(
+                        "Finding the latest backup since a specific one was not provided..."
+                    )
                     backups = glob.glob(f"{backup_path}/*")
                     latest_file = max(backups, key=os.path.getmtime)
                     os.system(f"wp db import {latest_file}")
-                    
+
     except subprocess.CalledProcessError as error:
-        print('It looks like you aren\'t in a project folder')
+        print("It looks like you aren't in a project folder")
 
         print(error)
         sys.exit(0)
 
-def main():
-    parser = argparse.ArgumentParser(description="This tool helps manage WordPress locally")
 
-    parser.add_argument("-i", "--initial", action="store_true", help="Create WordPress site on machine, removes unnecessary plugins and initializes git in the root of the project")
+def main():
+    parser = argparse.ArgumentParser(
+        description="This tool helps manage WordPress locally"
+    )
+
+    parser.add_argument(
+        "-i",
+        "--initial",
+        action="store_true",
+        help="Create WordPress site on machine, removes default plugins (akismet and hello) and initializes git in the root of the project",
+    )
     parser.add_argument("-uc", "--update-core", action="store_true", help="Update core")
-    parser.add_argument("-up", "--update-plugins", action="store_true", help="Update all plugins")
-    parser.add_argument("-bd", "--backup-db", action="store_true", help="Back up the database to the db-backup folder")
+    parser.add_argument(
+        "-up", "--update-plugins", action="store_true", help="Update all plugins"
+    )
+    parser.add_argument(
+        "-bd",
+        "--backup-db",
+        action="store_true",
+        help="Back up the database to the db-backup folder",
+    )
     parser.add_argument(
         "-id",
         "--import-db",
         nargs="?",
         const="",
-        help="Imports a local database from the db-backup folder, defaults to the latest file if a specific one isn't provided"
+        help="Imports a local database from the db-backup folder, defaults to the latest file if a specific one isn't provided",
     )
 
     args = parser.parse_args()
-    
+
     if args.initial:
         initial()
     elif args.update_core:
