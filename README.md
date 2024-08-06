@@ -12,6 +12,8 @@ I would also recommend making an alias but do whatever floats your boat.
 alias nova="python3 ~/example_path/nova/nova.py"
 ```
 
+*I have only tested this with MAMP so far and make no promises on it working flawlessly using any other dev environment yet*
+
 ## Installation
 
 This script requires [Python](https://www.python.org/downloads/) and the [WP-CLI](https://wp-cli.org/) in order to run.
@@ -22,9 +24,28 @@ I would also recommend making an alias but do whatever floats your boat.
 alias nova="python3 ~/example_path/nova/nova.py"
 ```
 
-## Usage
-
 Fill out the variables in the config.ini file before using the script, here's a breakdown of what they are:
+
+```python
+[General]
+# the root folder that contains your WordPress installations
+root_path = /example/path/w
+
+# the base URL for your projects
+proj_url = http://localhost:8888
+
+# the email you would like set as the admin in the WordPress backend by default
+admin_email = admin@email.com
+
+# any default plugins you would like added, if you don't want any added by default then leave this blank
+default_plugins = wordpress-seo, blocks-kit
+
+[Database]
+# the database host URL
+db_host = 127.0.0.1:8889
+```
+
+## Usage
 
 ```python
 # initializes a WordPress project

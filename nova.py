@@ -46,7 +46,6 @@ def read_config():
 def initial():
     slug = input("Enter project slug: ")
     title = input("Site title: ")
-    # site = input("Enter site url: ")
 
     print("Starting WordPress setup...")
     os.chdir(config_data["root_path"])
@@ -205,7 +204,7 @@ def main():
         "-i",
         "--initial",
         action="store_true",
-        help="Create WordPress site on machine, removes default plugins (akismet and hello) and initializes git in the root of the project",
+        help="Create WordPress site on machine, removes default native plugins (akismet and hello), adds default plugins specified in files/config.ini, and initializes git in the root of the project",
     )
     parser.add_argument("-uc", "--update-core", action="store_true", help="Update core")
     parser.add_argument(
