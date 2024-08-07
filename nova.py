@@ -7,6 +7,7 @@ import argparse
 from datetime import datetime
 import configparser
 import subprocess
+import logging
 
 PATH = os.getcwd()
 
@@ -92,7 +93,7 @@ def initial():
         "--------------------------------------------------------------------------------"
     )
     if "none" in config_data["default_plugins"]:
-        print('No default plugins specified, skipping to next step...')
+        print("No default plugins specified, skipping to next step...")
     else:
         print("Adding plugins specified in config.ini...")
 
@@ -131,68 +132,56 @@ def updateplugins():
 
 
 def backup():
-    try:
-        # checking if we're in a WP installation to run the command
-        subprocess.check_output("wp core is-installed", shell=True)
+    print("Checking if backup folder exists...")
 
-        print("Checking if backup folder exists...")
+    backup_path = f"{PATH}/db-backup"
+    if not os.path.exists(backup_path):
+        print("It doesn't so creating one...")
+        os.chdir(f"{PATH}")
+        os.makedirs(backup_path)
+    else:
+        print("It does so just backing up the db...")
 
-        backup_path = f"{PATH}/db-backup"
-        if not os.path.exists(backup_path):
-            print("It doesn't so creating one...")
-            os.chdir(f"{PATH}")
-            os.makedirs(backup_path)
-        else:
-            print("It does so just backing up the db...")
-
-        now = datetime.now()
-        dt_string = now.strftime("%m-%d-%Y-%H%M%S")
-        os.chdir(f"{backup_path}")
-        os.system(f"wp db export {dt_string}.sql")
-
-    except subprocess.CalledProcessError as error:
-        print("It looks like you aren't in a project folder")
-
-        print(error)
-        sys.exit(0)
+    now = datetime.now()
+    dt_string = now.strftime("%m-%d-%Y-%H%M%S")
+    os.chdir(f"{backup_path}")
+    os.system(f"wp db export {dt_string}.sql")
 
 
 def importdb(db_name):
-    try:
-        # checking if we're in a WP installation to run the command
-        subprocess.check_output("wp core is-installed", shell=True)
-
-        backup_path = f"{PATH}/db-backup"
-        if not os.path.exists(backup_path):
+    backup_path = f"{PATH}/db-backup"
+    if not os.path.exists(backup_path):
+        print(
+            "The db-backup folder does not exist, import failed. Try backing up a db first"
+        )
+        logging.error("The db-backup folder does not exist, database import failed")
+    else:
+        if not glob.glob(f"{backup_path}/*.sql"):
             print(
-                "The db-backup folder does not exist, import failed. Try backing up a db first"
+                "No SQL files found in db-backup folder, import failed. Try backing up a db first"
             )
+            logging.error(
+                "No SQL files found in db-backup folder, database import failed"
+            )
+            sys.exit(0)
         else:
-            if not glob.glob(f"{backup_path}/*.sql"):
-                print(
-                    "No SQL files found in db-backup folder, import failed. Try backing up a db first"
-                )
-                sys.exit(0)
-            else:
-                if db_name:
-                    print(f"Searching for specified {db_name} file...")
-                    if glob.glob(f"{backup_path}/{db_name}"):
-                        os.system(f"wp db import {backup_path}/{db_name}")
-                    else:
-                        print(f"{db_name} file not found, import failed")
+            if db_name:
+                print(f"Searching for specified {db_name} file...")
+                if glob.glob(f"{backup_path}/{db_name}"):
+                    os.system(f"wp db import {backup_path}/{db_name}")
                 else:
-                    print(
-                        "Finding the latest backup since a specific one was not provided..."
+                    print(f"{db_name} file not found, import failed")
+                    logging.error(
+                        "%s was not found in the db-backup folder, database import failed",
+                        db_name,
                     )
-                    backups = glob.glob(f"{backup_path}/*")
-                    latest_file = max(backups, key=os.path.getmtime)
-                    os.system(f"wp db import {latest_file}")
-
-    except subprocess.CalledProcessError as error:
-        print("It looks like you aren't in a project folder")
-
-        print(error)
-        sys.exit(0)
+            else:
+                print(
+                    "Finding the latest backup since a specific one was not provided..."
+                )
+                backups = glob.glob(f"{backup_path}/*")
+                latest_file = max(backups, key=os.path.getmtime)
+                os.system(f"wp db import {latest_file}")
 
 
 def main():
@@ -229,19 +218,87 @@ def main():
     if args.initial:
         initial()
     elif args.update_core:
-        updatecore()
+        # checking if we're in a WP installation to run the command
+        try:
+            subprocess.check_output(
+                "wp core is-installed", shell=True, stderr=subprocess.DEVNULL
+            )
+
+            # if installed then update core
+            updatecore()
+        except subprocess.CalledProcessError:
+            print("It looks like you aren't in a project folder, process failed")
+            logging.error(
+                "Tried updating core and failed. WordPress is not installed in %s and does not seem to be a project folder",
+                PATH,
+            )
+            sys.exit(0)
     elif args.update_plugins:
-        updateplugins()
+        # checking if we're in a WP installation to run the command
+        try:
+            subprocess.check_output(
+                "wp core is-installed", shell=True, stderr=subprocess.DEVNULL
+            )
+
+            # if installed then update plugins
+            updateplugins()
+        except subprocess.CalledProcessError:
+            print("It looks like you aren't in a project folder, process failed")
+            logging.error(
+                "Tried updating plugins and failed. WordPress is not installed in %s and does not seem to be a project folder",
+                PATH,
+            )
+            sys.exit(0)
     elif args.backup_db:
-        backup()
+        # checking if we're in a WP installation to run the command
+        try:
+            subprocess.check_output(
+                "wp core is-installed", shell=True, stderr=subprocess.DEVNULL
+            )
+
+            # if installed then run backup function
+            backup()
+        except subprocess.CalledProcessError:
+            print("It looks like you aren't in a project folder, process failed")
+            logging.error(
+                "Tried backing up database and failed. WordPress is not installed in %s and does not seem to be a project folder",
+                PATH,
+            )
+            sys.exit(0)
     elif args.import_db:
-        if not args.import_db:
-            importdb()
-        else:
-            importdb(args.import_db)
+        # checking if we're in a WP installation to run the command
+        try:
+            subprocess.check_output(
+                "wp core is-installed", shell=True, stderr=subprocess.DEVNULL
+            )
+
+            # if installed then run import function
+            if not args.import_db:
+                importdb()
+            else:
+                importdb(args.import_db)
+        except subprocess.CalledProcessError:
+            print("It looks like you aren't in a project folder, process failed")
+            logging.error(
+                "Tried importing database and failed. WordPress is not installed in %s and does not seem to be a project folder",
+                PATH,
+            )
+            sys.exit(0)
 
 
 if __name__ == "__main__":
+    # create a folder for logs if one doesn't already exist
+    if not os.path.exists(f"{os.path.dirname(__file__)}/logs"):
+        os.mkdir(f"{os.path.dirname(__file__)}/logs")
+
+    logging.basicConfig(
+        filename=f"{os.path.dirname(__file__)}/logs/app.log",
+        filemode="a",
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        style="%",
+        datefmt="%Y-%m-%d %H:%M",
+    )
+
     config_data = read_config()
 
     main()
