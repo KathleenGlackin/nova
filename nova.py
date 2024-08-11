@@ -140,9 +140,12 @@ def initial():
         "--------------------------------------------------------------------------------"
     )
     print("Adding gitignore...")
-    os.system(
-        f'cp {os.path.dirname(__file__)}/files/.gitignore {config_data["root_path"]}/{slug}'
-    )
+    #if using Windows then use copy since cp won't work
+    cmd = f'cp {os.path.dirname(__file__)}/files/.gitignore {config_data["root_path"]}/{slug}'
+    if os.name == 'nt':
+        cmd = f'copy "{os.path.dirname(__file__)}/files/.gitignore" "{config_data["root_path"]}/{slug}"'
+
+    os.system(cmd)
 
     print(
         "--------------------------------------------------------------------------------"
