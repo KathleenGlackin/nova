@@ -143,7 +143,7 @@ def initial():
     #if using Windows then use copy since cp won't work
     cmd = f'cp {os.path.dirname(__file__)}/files/.gitignore {config_data["root_path"]}/{slug}'
     if os.name == 'nt':
-        cmd = f'copy "{os.path.dirname(__file__)}/files/.gitignore" "{config_data["root_path"]}/{slug}"'
+        cmd = f'copy {os.path.dirname(__file__)}\\files\\.gitignore {config_data["root_path"]}\\{slug}'
 
     os.system(cmd)
 
@@ -362,7 +362,7 @@ if __name__ == "__main__":
         os.mkdir(f"{os.path.dirname(__file__)}/logs")
 
     logging.basicConfig(
-        filename=f"{os.path.dirname(__file__)}/logs/app.log",
+        filename=f"{os.path.dirname(__file__)}/logs/nova.log",
         filemode="a",
         format="%(asctime)s - %(levelname)s - %(message)s",
         style="%",
