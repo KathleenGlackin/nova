@@ -44,7 +44,6 @@ def query_yes_no(question, default="yes"):
 
 
 def read_config():
-    # Create a ConfigParser object
     config = configparser.ConfigParser()
 
     # get path to current script
@@ -52,7 +51,6 @@ def read_config():
 
     config_file_path = os.path.join(script_directory, "config.ini")
 
-    # Read the configuration file
     config.read(config_file_path)
 
     # Access values from the configuration file
@@ -63,7 +61,6 @@ def read_config():
 
     db_host = config.get("Database", "db_host")
 
-    # Return a dictionary with the retrieved values
     config_values = {
         "root_path": root_path,
         "proj_url": proj_url,

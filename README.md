@@ -66,6 +66,13 @@ nova --import-db
 # Imports a specified database in the db-backup folder
 nova --import-db test.sql
 
-# Searches through the database using the first parameter provided and replaces it with the second parameter. A backup of the database is automatically done before this is run.
+# Searches through the database using the first parameter provided and replaces it with the
+# second parameter. A backup of the database is automatically done before this is run.
 nova --search-db http://localhost https://www.example.com
 ```
+
+## Roadmap
+- reconfigure search & replace command to also work with multiple search terms/replacements
+- improve the logging
+- add more detail to the README
+- add more functionality from the WP CLI
