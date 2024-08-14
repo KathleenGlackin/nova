@@ -6,12 +6,6 @@ A python build script to help manage local WordPress development using the WP-CL
 
 This script requires [Python](https://www.python.org/downloads/) and the [WP-CLI](https://wp-cli.org/) in order to run.
 
-I would also recommend making an alias but do whatever floats your boat.
-
-```python
-alias nova="python3 ~/example_path/nova/nova.py"
-```
-
 *I have only tested this with MAMP so far and make no promises on it working flawlessly using any other dev environment yet*
 
 ## Installation
@@ -19,6 +13,12 @@ alias nova="python3 ~/example_path/nova/nova.py"
 Clone the repo
 ```python
 git clone https://github.com/KathleenGlackin/nova.git
+```
+
+Make an alias to the script for ease of use:
+
+```python
+alias nova="python3 ~/example_path/nova/nova.py"
 ```
 
 Fill out the variables in the config.ini file before using the script, here's a breakdown of what they are:
