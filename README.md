@@ -16,12 +16,9 @@ alias nova="python3 ~/example_path/nova/nova.py"
 
 ## Installation
 
-This script requires [Python](https://www.python.org/downloads/) and the [WP-CLI](https://wp-cli.org/) in order to run.
-
-I would also recommend making an alias but do whatever floats your boat.
-
+Clone the repo
 ```python
-alias nova="python3 ~/example_path/nova/nova.py"
+git clone https://github.com/KathleenGlackin/nova.git
 ```
 
 Fill out the variables in the config.ini file before using the script, here's a breakdown of what they are:
@@ -68,4 +65,7 @@ nova --import-db
 
 # Imports a specified database in the db-backup folder
 nova --import-db test.sql
+
+# Searches through the database using the first parameter provided and replaces it with the second parameter. A backup of the database is automatically done before this is run.
+nova --search-db http://localhost https://www.example.com
 ```

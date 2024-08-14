@@ -265,7 +265,7 @@ def main():
         "-sr",
         "--search-db",
         nargs="*",
-        help="Searches through the database for the first parameter and replaces it with the first parameter. A backup of the db is automatically done before this is run.",
+        help="Searches through the database for the first parameter and replaces it with the second parameter. A backup of the db is automatically done before this is run.",
     )
 
     args = parser.parse_args()
