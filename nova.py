@@ -2,6 +2,7 @@
 
 import glob
 import os
+import shutil
 import sys
 import argparse
 from datetime import datetime
@@ -10,6 +11,7 @@ import subprocess
 import logging
 
 PATH = os.getcwd()
+SEPARATOR = "-" * 80
 
 
 def query_yes_no(question, default="yes"):
@@ -45,31 +47,29 @@ def query_yes_no(question, default="yes"):
 
 def read_config():
     config = configparser.ConfigParser()
-
-    # get path to current script
-    script_directory = os.path.dirname(os.path.abspath(__file__))
-
-    config_file_path = os.path.join(script_directory, "config.ini")
-
-    config.read(config_file_path)
-
-    # Access values from the configuration file
-    root_path = config.get("General", "root_path")
-    proj_url = config.get("General", "proj_url")
-    admin_email = config.get("General", "admin_email")
-    default_plugins = config.get("General", "default_plugins").split(", ")
-
-    db_host = config.get("Database", "db_host")
-
-    config_values = {
-        "root_path": root_path,
-        "proj_url": proj_url,
-        "admin_email": admin_email,
-        "default_plugins": default_plugins,
-        "db_host": db_host,
+    config.read(os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.ini"))
+    return {
+        "root_path": config.get("General", "root_path"),
+        "proj_url": config.get("General", "proj_url"),
+        "admin_email": config.get("General", "admin_email"),
+        "default_plugins": config.get("General", "default_plugins").split(", "),
+        "db_host": config.get("Database", "db_host"),
     }
 
-    return config_values
+
+def require_wp_installed(action):
+    try:
+        subprocess.check_output(
+            "wp core is-installed", shell=True, stderr=subprocess.DEVNULL
+        )
+    except subprocess.CalledProcessError:
+        print("It looks like you aren't in a project folder, process failed")
+        logging.error(
+            "Tried %s and failed. WordPress is not installed in %s and does not seem to be a project folder",
+            action,
+            PATH,
+        )
+        sys.exit(1)
 
 
 def initial():
@@ -78,75 +78,52 @@ def initial():
 
     print("Starting WordPress setup...")
     os.chdir(config_data["root_path"])
-    print("Creating " + slug + " folder...")
-    os.mkdir(f"{slug}")
-    os.chdir(f"{config_data['root_path']}/{slug}")
+    print(f"Creating {slug} folder...")
+    os.mkdir(slug)
+    os.chdir(os.path.join(config_data["root_path"], slug))
 
-    print(
-        "--------------------------------------------------------------------------------"
-    )
+    print(SEPARATOR)
     print("Installing WordPress...")
     os.system("wp core download")
 
-    print(
-        "--------------------------------------------------------------------------------"
-    )
+    print(SEPARATOR)
     print("Generating wp-config...")
     os.system(
         f"wp config create --dbname={slug} --dbuser=root --dbpass=root --dbhost={config_data['db_host']}"
     )
 
-    print(
-        "--------------------------------------------------------------------------------"
-    )
+    print(SEPARATOR)
     print("Creating database...")
     os.system("wp db create")
 
-    print(
-        "--------------------------------------------------------------------------------"
-    )
+    print(SEPARATOR)
     print("WP core install...")
     os.system(
         f'wp core install --url="{config_data["proj_url"]}/{slug}" --title="{title}" --admin_user="root" --admin_password="root" --admin_email="{config_data["admin_email"]}"'
     )
 
-    print(
-        "--------------------------------------------------------------------------------"
-    )
+    print(SEPARATOR)
     print("Removing default plugins...")
-    os.system("wp plugin delete akismet")
-    os.system("wp plugin delete hello")
+    os.system("wp plugin delete akismet hello")
 
-    print(
-        "--------------------------------------------------------------------------------"
-    )
+    print(SEPARATOR)
     if "none" in config_data["default_plugins"]:
         print("No default plugins specified, skipping to next step...")
     else:
         print("Adding plugins specified in config.ini...")
+        os.system("wp plugin install " + " ".join(config_data["default_plugins"]))
 
-        for i in config_data["default_plugins"]:
-            os.system(f"wp plugin install {i}")
-
-    print(
-        "--------------------------------------------------------------------------------"
-    )
+    print(SEPARATOR)
     os.system("git init")
 
-    print(
-        "--------------------------------------------------------------------------------"
-    )
+    print(SEPARATOR)
     print("Adding gitignore...")
-    #if using Windows then use copy since cp won't work
-    cmd = f'cp {os.path.dirname(__file__)}/files/.gitignore {config_data["root_path"]}/{slug}'
-    if os.name == 'nt':
-        cmd = f'copy {os.path.dirname(__file__)}\\files\\.gitignore {config_data["root_path"]}\\{slug}'
-
-    os.system(cmd)
-
-    print(
-        "--------------------------------------------------------------------------------"
+    shutil.copy(
+        os.path.join(os.path.dirname(__file__), "files", ".gitignore"),
+        os.path.join(config_data["root_path"], slug),
     )
+
+    print(SEPARATOR)
     print(
         f"Installation complete! Site can be found at {config_data['proj_url']}/{slug}"
     )
@@ -165,54 +142,46 @@ def updateplugins():
 def backup():
     print("Checking if backup folder exists...")
 
-    backup_path = f"{PATH}/db-backup"
+    backup_path = os.path.join(PATH, "db-backup")
     if not os.path.exists(backup_path):
         print("It doesn't so creating one...")
-        os.chdir(f"{PATH}")
         os.makedirs(backup_path)
     else:
         print("It does so just backing up the db...")
 
-    now = datetime.now()
-    dt_string = now.strftime("%m-%d-%Y-%H%M%S")
-    os.chdir(f"{backup_path}")
+    dt_string = datetime.now().strftime("%m-%d-%Y-%H%M%S")
+    os.chdir(backup_path)
     os.system(f"wp db export {dt_string}.sql")
 
 
 def importdb(db_name):
-    backup_path = f"{PATH}/db-backup"
+    backup_path = os.path.join(PATH, "db-backup")
     if not os.path.exists(backup_path):
-        print(
-            "The db-backup folder does not exist, import failed. Try backing up a db first"
-        )
+        print("The db-backup folder does not exist, import failed. Try backing up a db first")
         logging.error("The db-backup folder does not exist, database import failed")
-    else:
-        if not glob.glob(f"{backup_path}/*.sql"):
-            print(
-                "No SQL files found in db-backup folder, import failed. Try backing up a db first"
-            )
-            logging.error(
-                "No SQL files found in db-backup folder, database import failed"
-            )
-            sys.exit(0)
+        return
+
+    sql_files = glob.glob(os.path.join(backup_path, "*.sql"))
+    if not sql_files:
+        print("No SQL files found in db-backup folder, import failed. Try backing up a db first")
+        logging.error("No SQL files found in db-backup folder, database import failed")
+        return
+
+    if db_name:
+        print(f"Searching for specified {db_name} file...")
+        target = os.path.join(backup_path, db_name)
+        if os.path.isfile(target):
+            os.system(f"wp db import {target}")
         else:
-            if db_name:
-                print(f"Searching for specified {db_name} file...")
-                if glob.glob(f"{backup_path}/{db_name}"):
-                    os.system(f"wp db import {backup_path}/{db_name}")
-                else:
-                    print(f"{db_name} file not found, import failed")
-                    logging.error(
-                        "%s was not found in the db-backup folder, database import failed",
-                        db_name,
-                    )
-            else:
-                print(
-                    "Finding the latest backup since a specific one was not provided..."
-                )
-                backups = glob.glob(f"{backup_path}/*")
-                latest_file = max(backups, key=os.path.getmtime)
-                os.system(f"wp db import {latest_file}")
+            print(f"{db_name} file not found, import failed")
+            logging.error(
+                "%s was not found in the db-backup folder, database import failed",
+                db_name,
+            )
+    else:
+        print("Finding the latest backup since a specific one was not provided...")
+        latest_file = max(sql_files, key=os.path.getmtime)
+        os.system(f"wp db import {latest_file}")
 
 
 def searchdb(search):
@@ -226,7 +195,7 @@ def searchdb(search):
         os.system(f"wp search-replace {search[0]} {search[1]}")
     else:
         print('Cancelling search & replace...')
-        sys.exit(0)
+        return
 
 
 def main():
@@ -270,93 +239,24 @@ def main():
     if args.initial:
         initial()
     elif args.update_core:
-        # checking if we're in a WP installation to run the command
-        try:
-            subprocess.check_output(
-                "wp core is-installed", shell=True, stderr=subprocess.DEVNULL
-            )
-
-            # if installed then update core
-            updatecore()
-        except subprocess.CalledProcessError:
-            print("It looks like you aren't in a project folder, process failed")
-            logging.error(
-                "Tried updating core and failed. WordPress is not installed in %s and does not seem to be a project folder",
-                PATH,
-            )
-            sys.exit(0)
+        require_wp_installed("updating core")
+        updatecore()
     elif args.update_plugins:
-        # checking if we're in a WP installation to run the command
-        try:
-            subprocess.check_output(
-                "wp core is-installed", shell=True, stderr=subprocess.DEVNULL
-            )
-
-            # if installed then update plugins
-            updateplugins()
-        except subprocess.CalledProcessError:
-            print("It looks like you aren't in a project folder, process failed")
-            logging.error(
-                "Tried updating plugins and failed. WordPress is not installed in %s and does not seem to be a project folder",
-                PATH,
-            )
-            sys.exit(0)
+        require_wp_installed("updating plugins")
+        updateplugins()
     elif args.backup_db:
-        # checking if we're in a WP installation to run the command
-        try:
-            subprocess.check_output(
-                "wp core is-installed", shell=True, stderr=subprocess.DEVNULL
-            )
-
-            # if installed then run backup function
-            backup()
-        except subprocess.CalledProcessError:
-            print("It looks like you aren't in a project folder, process failed")
-            logging.error(
-                "Tried backing up database and failed. WordPress is not installed in %s and does not seem to be a project folder",
-                PATH,
-            )
-            sys.exit(0)
+        require_wp_installed("backing up database")
+        backup()
     elif args.import_db:
-        # checking if we're in a WP installation to run the command
-        try:
-            subprocess.check_output(
-                "wp core is-installed", shell=True, stderr=subprocess.DEVNULL
-            )
-
-            # if installed then run import function
-            if not args.import_db:
-                importdb()
-            else:
-                importdb(args.import_db)
-        except subprocess.CalledProcessError:
-            print("It looks like you aren't in a project folder, process failed")
-            logging.error(
-                "Tried importing database and failed. WordPress is not installed in %s and does not seem to be a project folder",
-                PATH,
-            )
-            sys.exit(0)
+        require_wp_installed("importing database")
+        importdb(args.import_db)
     elif args.search_db:
-        # checking if we're in a WP installation to run the command
-        try:
-            subprocess.check_output(
-                "wp core is-installed", shell=True, stderr=subprocess.DEVNULL
-            )
-
-            searchdb(args.search_db)
-        except subprocess.CalledProcessError:
-            print("It looks like you aren't in a project folder, process failed")
-            logging.error(
-                "Tried searching database and failed. WordPress is not installed in %s and does not seem to be a project folder",
-                PATH,
-            )
-            sys.exit(0)
+        require_wp_installed("searching database")
+        searchdb(args.search_db)
 
 
 if __name__ == "__main__":
-    # create a folder for logs if one doesn't already exist
-    if not os.path.exists(f"{os.path.dirname(__file__)}/logs"):
-        os.mkdir(f"{os.path.dirname(__file__)}/logs")
+    os.makedirs(os.path.join(os.path.dirname(__file__), "logs"), exist_ok=True)
 
     logging.basicConfig(
         filename=f"{os.path.dirname(__file__)}/logs/nova.log",
